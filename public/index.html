@@ -54,6 +54,7 @@ h2 a{font-size:14px;color:var(--mute)}
 .auth input{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:11px 12px}
 .err{color:#ff8a8a;font-size:14px;min-height:20px}
 .mute{color:var(--mute)}
+.vb{vertical-align:-3px;margin-left:5px}
 .skel{height:200px;display:grid;place-items:center;color:var(--mute)}
 @media(max-width:700px){.det{grid-template-columns:1fr}.det img.p{max-width:200px}nav input{width:130px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -66,12 +67,10 @@ const $ = s => document.querySelector(s), app = $('#app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DAYS = {monday:'Senin',tuesday:'Selasa',wednesday:'Rabu',thursday:'Kamis',friday:'Jumat',saturday:'Sabtu',sunday:'Minggu'};
 const GENRES = ['action','adventure','comedy','drama','fantasy','romance','school','sci-fi','slice-of-life','supernatural','mystery','horror','isekai','sports','mecha','music'];
-let me = null;
 
 /* ---------- helpers: toleran terhadap bentuk JSON ---------- */
 async function api(kind, ep, q = {}) {
   const r = await fetch(`/api/p/${kind}/${ep}?` + new URLSearchParams(q));
-  if (r.status === 401) { me = null; showAuth(); throw 0; }
   return r.json().catch(() => ({}));
 }
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
@@ -113,27 +112,6 @@ const card = (o, kind) => { const s = sub(o);
   return `<a class="c" href="#/${kind}/${encodeURIComponent(S(o))}"><img loading="lazy" referrerpolicy="no-referrer" alt="" src="${esc(I(o))}"><b>${esc(T(o))}</b><i>${esc(s)}</i></a>`; };
 const empty = m => `<p class="skel">${m || 'Tidak ada data.'}</p>`;
 
-/* ---------- auth ---------- */
-function showAuth(mode = 'login') {
-  const reg = mode === 'register';
-  app.innerHTML = `<div class="auth"><form id="af">
-    <div class="logo">Trezz<span>Hub</span></div>
-    <p class="mute">${reg ? 'Buat akun untuk mulai nonton dan baca.' : 'Masuk untuk lanjut nonton dan baca.'}</p>
-    <input id="u" placeholder="Username" autocomplete="username" required>
-    <input id="p" type="password" placeholder="Password" autocomplete="${reg ? 'new-password' : 'current-password'}" required>
-    <div class="err" id="er"></div>
-    <button class="btn">${reg ? 'Daftar' : 'Masuk'}</button>
-    <button type="button" class="btn g" id="sw">${reg ? 'Sudah punya akun? Masuk' : 'Belum punya akun? Daftar'}</button>
-  </form></div>`;
-  $('#sw').onclick = () => showAuth(reg ? 'login' : 'register');
-  $('#af').onsubmit = async e => { e.preventDefault();
-    const r = await fetch('/api/' + mode, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: $('#u').value.trim(), password: $('#p').value }) });
-    const j = await r.json();
-    if (!r.ok) return $('#er').textContent = j.error;
-    me = j.username; shell(); route(); };
-}
-
 /* ---------- shell & router ---------- */
 function shell() {
   app.innerHTML = `<nav>
@@ -143,18 +121,15 @@ function shell() {
     <a class="t" data-k="komik" href="#/komik">Komik</a>
     <span class="sp"></span>
     <input id="q" type="search" placeholder="Cari anime atau komik">
-    <span class="mute">${esc(me)}</span>
-    <button class="btn g" id="lo">Keluar</button></nav><main id="m"></main>`;
+</nav><main id="m"></main>`;
   $('#q').onkeydown = e => { if (e.key === 'Enter' && e.target.value.trim()) {
     const k = location.hash.startsWith('#/komik') || location.hash.startsWith('#/k/') || location.hash.startsWith('#/read') ? 'komik' : 'anime';
     location.hash = `#/search/${k}/${encodeURIComponent(e.target.value.trim())}`; } };
-  $('#lo').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); me = null; showAuth(); };
 }
 function tab(k) { document.querySelectorAll('nav .t').forEach(a => a.classList.toggle('on', a.dataset.k === k)); }
 const M = h => $('#m').innerHTML = h;
 
 async function route() {
-  if (!me) return;
   const [, r, a, b] = location.hash.split('/').map(decodeURIComponent);
   scrollTo(0, 0);
   M(empty('Memuat…'));
@@ -275,10 +250,8 @@ async function read(cid, mid) {
 
 /* ---------- boot ---------- */
 addEventListener('hashchange', route);
-(async () => {
-  const r = await fetch('/api/me');
-  if (r.ok) { me = (await r.json()).username; shell(); route(); } else showAuth();
-})();
+shell();
+route();
 </script>
 </body>
 </html>
